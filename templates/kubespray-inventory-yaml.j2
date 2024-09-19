@@ -8,7 +8,7 @@ all:
     {% endfor %}
   
   children:
-    kube-master:
+    kube_control_plane:
       hosts:
         {% for node in groups['k8s_nodes'] -%}
         {% if hostvars[node]['master_node'] -%}
@@ -16,7 +16,7 @@ all:
         {% endif %}
         {%- endfor %}
     
-    kube-node:
+    kube_node:
       hosts:
         {% for node in groups['k8s_nodes'] -%}
         {% if hostvars[node]['worker_node'] -%}
@@ -32,9 +32,9 @@ all:
         {% endif %}
         {%- endfor %}
     
-    k8s-cluster:
+    k8s_cluster:
       children:
-        kube-master:
-        kube-node:
-    calico-rr:
+        kube_control_plane:
+        kube_node:
+    calico_rr:
       hosts: {}
