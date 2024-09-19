@@ -1,65 +1,67 @@
 ---
 - name: Pre kubespray stuff
   hosts: all
-  #become: yes
   gather_facts: false
   tasks:
-    # - name: Add entries to /etc/hosts
-    #   lineinfile:
-    #     path: /etc/hosts
-    #     state: present
-    #     line: "{{ item.ip }} {{ item.hostname }}"
-    #   loop: "{{ hosts }}"
-    #   backup: yes   # This will create a backup of /etc/hosts before modifying it
-    
-    # - name: Debug
-    #   debug:
-    #     msg: "{{ ansible_host }} {{ inventory_hostname }}.{{ hostvars[inventory_hostname].domain_name }} {{ inventory_hostname }}"
-    #   loop: "{{ groups['all'] }}"
-    #   delegate_to: localhost
-    #   run_once: true
+
+    - name: Install collections from requirements.yml
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection install -r requirements.yml
+      delegate_to: localhost
+      run_once: true
+
+    - name: Generate SSH key pair
+      openssh_keypair:
+        path: "/home/{{ ansible_user }}/.ssh/kubespray_ansible"
+        type: rsa
+        size: 2048
+        state: present
+        mode: '0600'
+      register: ssh_keypair_result
+      delegate_to: localhost
+      run_once: true
+
+    - name: Ensure the SSH public key is present on the remote host
+      authorized_key:
+        user: "{{ ansible_user }}"
+        state: present
+        key: "{{ lookup('file', '/home/{{ ansible_user }}/.ssh/kubespray_ansible.pub') }}"
+      when: inventory_hostname not in groups['ansible_nodes']
 
     - name: Add entries to /etc/hosts
+      become: true
       lineinfile:
-        path: ./hosts
+        path: /etc/hosts
         state: present
         line: "{{ hostvars[item].ansible_host }} {{ hostvars[item].inventory_hostname }}.{{ hostvars[item].domain_name }} {{ hostvars[item].inventory_hostname }}"
         backup: yes
       loop: "{{ groups['all'] }}"
       loop_control:
         loop_var: item
+
+
+- name: Build Kubespray inventory and additional k8s node setup
+  hosts: k8s_nodes
+  gather_facts: false
+  tasks:
+    - name: Create inventory directory if it does not exist
+      ansible.builtin.file:
+        path: ../kubespray/inventory/
+        state: directory
+        mode: '0755'
       delegate_to: localhost
       run_once: true
-
-    # - name: Distribute SSH public key to remote hosts
-    #   tasks:
-    #     - name: Ensure the SSH public key is present on the remote host
-    #       authorized_key:
-    #         user: "{{ ansible_user }}"     # Remote user to add the key for
-    #         state: present
-    #         key: "{{ lookup('file', '/path/to/your/public/key.pub') }}"
-
-    - name: Generate SSH key pair
-      openssh_keypair:
-        path: "/home/{{ ansible_user }}/.ssh/kubespray_test"   # Path where the key pair will be stored
-        type: rsa                                      # Type of key (rsa, dsa, ecdsa, ed25519)
-        size: 2048                                     # Key size (only for rsa/dsa)
-        state: present                                 # Ensures the key is present
-        mode: '0600'                                   # Permissions for the private key
-      register: ssh_keypair_result
+    
+    - name: Generate inventory.yml for kubespray using Jinja2
+      template:
+        src: ./templates/kubespray-inventory-yaml.j2
+        dest: ../kubespray/inventory/k8s-hosts.yml
       delegate_to: localhost
-      run_once: true
-
-    - name: Display the generated public key
-      debug:
-        msg: "Public key: {{ ssh_keypair_result.public_key }}"
-      delegate_to: localhost
-      run_once: true
-
-    # - name: Install collections from requirements.yml
-    #   ansible.builtin.command:
-    #     cmd: ansible-galaxy collection install -r requirements.yml
-    #   # args:
-    #   #   chdir: "{{ playbook_dir }}"
-    #   delegate_to: localhost
-    #   run_once: true
+    
+    - name: Disable swap, firewall, and turn on ip_forward feature
+      become: true
+      become_user: root
+      ansible.builtin.shell:
+        sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab && sudo swapoff -a
+        echo 'net.ipv4.ip_forward=1' | sudo tee -a /etc/sysctl.conf
+        sudo systemctl stop firewalld && sudo systemctl disable firewalld

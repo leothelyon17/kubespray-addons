@@ -1,0 +1,40 @@
+all:
+  hosts:
+    {% for node in groups['k8s_nodes'] -%}
+    {{ hostvars[node].inventory_hostname }}:
+      ansible_host: {{ hostvars[node].ansible_host }}
+      ip: {{ hostvars[node].ansible_host }}
+      access_ip: {{ hostvars[node].ansible_host }}
+    {% endfor %}
+  
+  children:
+    kube-master:
+      hosts:
+        {% for node in groups['k8s_nodes'] -%}
+        {% if hostvars[node]['master_node'] -%}
+        {{ hostvars[node].inventory_hostname }}:
+        {% endif %}
+        {%- endfor %}
+    
+    kube-node:
+      hosts:
+        {% for node in groups['k8s_nodes'] -%}
+        {% if hostvars[node]['worker_node'] -%}
+        {{ hostvars[node].inventory_hostname }}:
+        {% endif %}
+        {%- endfor %}
+    
+    etcd:
+      hosts:
+        {% for node in groups['k8s_nodes'] -%}
+        {% if hostvars[node]['etcd_node'] -%}
+        {{ hostvars[node].inventory_hostname }}:
+        {% endif %}
+        {%- endfor %}
+    
+    k8s-cluster:
+      children:
+        kube-master:
+        kube-node:
+    calico-rr:
+      hosts: {}
