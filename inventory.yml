@@ -1,0 +1,37 @@
+---
+all:
+  hosts:
+    Rocky9-LabNode1:
+      ansible_host: 172.16.99.25
+      domain_name: jjland.local
+      master_node: True
+      worker_node: True
+      etcd_node: True
+    Rocky9-LabNode2:
+      ansible_host: 172.16.99.26
+      domain_name: jjland.local
+      master_node: False
+      worker_node: True
+      etcd_node: False
+    Rocky9-LabNode3:
+      ansible_host: 172.16.99.27
+      domain_name: jjland.local
+      master_node: False
+      worker_node: True
+      etcd_node: False
+    Rocky9-LabMGMT:
+      ansible_host: 172.16.99.20
+      domain_name: jjland.local
+
+  children:
+    k8s_nodes:
+      hosts:
+        Rocky9-LabNode1:
+        Rocky9-LabNode2:
+        Rocky9-LabNode3:
+    ansible_nodes:
+      hosts:
+        Rocky9-LabMGMT:
+      
+  vars:
+    ansible_user: jeff

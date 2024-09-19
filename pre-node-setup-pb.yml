@@ -1,0 +1,65 @@
+---
+- name: Pre kubespray stuff
+  hosts: all
+  #become: yes
+  gather_facts: false
+  tasks:
+    # - name: Add entries to /etc/hosts
+    #   lineinfile:
+    #     path: /etc/hosts
+    #     state: present
+    #     line: "{{ item.ip }} {{ item.hostname }}"
+    #   loop: "{{ hosts }}"
+    #   backup: yes   # This will create a backup of /etc/hosts before modifying it
+    
+    # - name: Debug
+    #   debug:
+    #     msg: "{{ ansible_host }} {{ inventory_hostname }}.{{ hostvars[inventory_hostname].domain_name }} {{ inventory_hostname }}"
+    #   loop: "{{ groups['all'] }}"
+    #   delegate_to: localhost
+    #   run_once: true
+
+    - name: Add entries to /etc/hosts
+      lineinfile:
+        path: ./hosts
+        state: present
+        line: "{{ hostvars[item].ansible_host }} {{ hostvars[item].inventory_hostname }}.{{ hostvars[item].domain_name }} {{ hostvars[item].inventory_hostname }}"
+        backup: yes
+      loop: "{{ groups['all'] }}"
+      loop_control:
+        loop_var: item
+      delegate_to: localhost
+      run_once: true
+
+    # - name: Distribute SSH public key to remote hosts
+    #   tasks:
+    #     - name: Ensure the SSH public key is present on the remote host
+    #       authorized_key:
+    #         user: "{{ ansible_user }}"     # Remote user to add the key for
+    #         state: present
+    #         key: "{{ lookup('file', '/path/to/your/public/key.pub') }}"
+
+    - name: Generate SSH key pair
+      openssh_keypair:
+        path: "/home/{{ ansible_user }}/.ssh/kubespray_test"   # Path where the key pair will be stored
+        type: rsa                                      # Type of key (rsa, dsa, ecdsa, ed25519)
+        size: 2048                                     # Key size (only for rsa/dsa)
+        state: present                                 # Ensures the key is present
+        mode: '0600'                                   # Permissions for the private key
+      register: ssh_keypair_result
+      delegate_to: localhost
+      run_once: true
+
+    - name: Display the generated public key
+      debug:
+        msg: "Public key: {{ ssh_keypair_result.public_key }}"
+      delegate_to: localhost
+      run_once: true
+
+    # - name: Install collections from requirements.yml
+    #   ansible.builtin.command:
+    #     cmd: ansible-galaxy collection install -r requirements.yml
+    #   # args:
+    #   #   chdir: "{{ playbook_dir }}"
+    #   delegate_to: localhost
+    #   run_once: true
