@@ -55,16 +55,15 @@
     - name: Generate inventory.yml for kubespray using Jinja2
       template:
         src: ./templates/kubespray-inventory-yaml.j2
-        dest: ../kubespray/inventory/k8s-hosts.yml
+        dest: ./k8s-hosts.yml
       delegate_to: localhost
-    
-    # - name: Disable swap, firewall, and turn on ip_forward feature
-    #   become: true
-    #   become_user: root
-    #   ansible.builtin.shell:
-    #     sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab && sudo swapoff -a
-    #     echo 'net.ipv4.ip_forward=1' | sudo tee -a /etc/sysctl.conf
-    #     sudo systemctl stop firewalld && sudo systemctl disable firewalld
+
+    - name: Copy completed template to kubespray inventory folder
+      ansible.builtin.copy:
+        src: ./k8s-hosts.yml
+        dest: ../kubespray/inventory
+        mode: '0755'
+      delegate_to: localhost
 
     - name: Disable swap
       ansible.builtin.command: swapoff -a

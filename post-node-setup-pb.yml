@@ -1,0 +1,43 @@
+---
+- name: Setup kubectl on control plane nodes
+  hosts: k8s_nodes
+  gather_facts: false
+  tasks:
+
+    - name: Kubectl block
+      block:
+        - name: Download kubectl files (latest)
+          ansible.builtin.shell:
+            cmd: curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+            chdir: /home/{{ ansible_user }}
+
+        - name: Copy kubernetes admin configuration
+          become: true
+          ansible.builtin.shell:
+            cmd: cp /etc/kubernetes/admin.conf /home/{{ ansible_user }}/config
+            chdir: /home/{{ ansible_user }}
+
+        - name: Remove existing .kube directory
+          ansible.builtin.file:
+            path: /home/{{ ansible_user }}/.kube
+            state: absent
+
+        - name: Create fresh .kube directory
+          ansible.builtin.file:
+            path: /home/{{ ansible_user }}/.kube
+            state: directory
+            mode: '0755'
+
+        - name: Copy kubernetes admin configuration
+          ansible.builtin.shell:
+            cmd: mv config .kube/
+            chdir: /home/{{ ansible_user }}
+
+        - name: Correct ownership of .kube config
+          become: true
+          ansible.builtin.file:
+            path: /home/{{ ansible_user }}/.kube/config
+            owner: "{{ ansible_user }}"
+            group: 1000
+            
+      when: hostvars[inventory_hostname]['master_node']
