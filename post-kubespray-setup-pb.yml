@@ -28,7 +28,7 @@
             state: directory
             mode: '0755'
 
-        - name: Copy kubernetes admin configuration
+        - name: Move kubernetes admin configuration
           ansible.builtin.shell:
             cmd: mv config .kube/
             chdir: /home/{{ ansible_user }}

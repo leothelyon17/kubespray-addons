@@ -4,3 +4,4 @@
 
 collections:
   - name: community.crypto
+  - name: ansible.posix

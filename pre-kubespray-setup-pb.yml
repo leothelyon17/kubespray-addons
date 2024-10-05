@@ -1,7 +1,8 @@
 ---
-- name: Pre kubespray stuff
+- name: Pre Kubespray Setup
   hosts: all
   gather_facts: false
+  
   tasks:
 
     - name: Install collections from requirements.yml
@@ -66,6 +67,7 @@
       delegate_to: localhost
 
     - name: Disable swap
+      become: true
       ansible.builtin.command: swapoff -a
 
     - name: Remove swap entry from /etc/fstab
@@ -110,6 +112,7 @@
       become: true
       ansible.builtin.firewalld:
         service: "{{ item }}"
+        permanent: yes
         state: enabled
         immediate: yes
       loop:
@@ -132,3 +135,12 @@
         - etcd-server
       notify:
         - Reload firewalld
+
+  handlers:
+  - name: Reload firewalld
+    become: true
+    ansible.builtin.command: systemctl reload firewalld
+    
+  - name: Reload sysctl
+    become: true
+    ansible.builtin.command: sysctl --system
