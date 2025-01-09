@@ -119,6 +119,7 @@
         - ssh
         - http
         - https
+        - dns
         - kube-api 
         - kube-apiserver
         - kube-control-plane
